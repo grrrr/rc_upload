@@ -1,5 +1,7 @@
-build:
-  stage: build
+deploy:
+  stage: deploy
+  only:
+    - triggers
   tags:
     - docker
     - rcedit
