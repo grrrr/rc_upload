@@ -2,6 +2,9 @@ deploy:
   stage: deploy
   only:
     - triggers
+  needs:
+    - pipeline: $PARENT_PIPELINE_ID
+      job: $PARENT_PIPELINE_ID
   tags:
     - docker
     - rcedit
