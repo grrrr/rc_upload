@@ -5,6 +5,7 @@ deploy:
   needs:
     - pipeline: $PARENT_PIPELINE_ID
       job: build
+      artifacts: true
   tags:
     - docker
     - rcedit
