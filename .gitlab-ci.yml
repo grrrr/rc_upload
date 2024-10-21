@@ -1,11 +1,10 @@
 deploy:
-  stage: build
+  stage: deploy
   only:
     - triggers
   needs:
     - pipeline: $PARENT_PIPELINE_ID
-      job: $PARENT_PIPELINE_JOB
-      artifacts: true
+      job: build
   tags:
     - docker
     - rcedit
