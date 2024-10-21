@@ -4,7 +4,8 @@ deploy:
     - triggers
   needs:
     - pipeline: $PARENT_PIPELINE_ID
-      job: $PARENT_PIPELINE_JOB
+      job: build 
+      #$PARENT_PIPELINE_JOB
       artifacts: true
   tags:
     - docker
