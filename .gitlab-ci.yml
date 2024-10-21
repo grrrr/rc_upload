@@ -3,10 +3,9 @@ deploy:
   only:
     - triggers
   needs:
-    - pipeline: "7778"
-      job: build
+    - pipeline: $PARENT_PIPELINE_ID
+      job: $PARENT_PIPELINE_JOB
       artifacts: true
-#    - pipeline: $PARENT_PIPELINE_ID
   tags:
     - docker
     - rcedit
