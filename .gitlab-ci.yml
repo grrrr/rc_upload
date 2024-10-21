@@ -1,11 +1,10 @@
 deploy:
-  stage: deploy
+  stage: build
   only:
     - triggers
   needs:
     - pipeline: $PARENT_PIPELINE_ID
-      job: build 
-      #$PARENT_PIPELINE_JOB
+      job: $PARENT_PIPELINE_JOB
       artifacts: true
   tags:
     - docker
