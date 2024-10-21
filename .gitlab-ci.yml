@@ -4,7 +4,7 @@ deploy:
     - triggers
   needs:
     - pipeline: $PARENT_PIPELINE_ID
-      job: $PARENT_PIPELINE_ID
+      job: $PARENT_PIPELINE_JOB
   tags:
     - docker
     - rcedit
