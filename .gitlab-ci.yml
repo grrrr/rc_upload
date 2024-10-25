@@ -17,5 +17,4 @@ deploy:
     - pip3 install -r requirements.txt
   script:
     - . ./bin/activate
-    - echo ./populate.py $RC_SITE_ID $RC_USER $RC_PW .
-    - ./populate.py $RC_SITE_ID $RC_USER $RC_PW .
+    - make
