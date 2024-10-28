@@ -1,5 +1,3 @@
-image: rc_upload
-
 deploy:
   stage: deploy
   only:
@@ -8,6 +6,7 @@ deploy:
     - pipeline: $PARENT_PIPELINE_ID
       job: $PARENT_PIPELINE_JOB
       artifacts: false # workaround for bug, see https://gitlab.com/gitlab-org/gitlab/-/issues/367229
+  image: rc_upload
   tags:
     - docker
     - rcedit
