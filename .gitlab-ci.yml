@@ -1,3 +1,5 @@
+image: rc_upload
+
 deploy:
   stage: deploy
   only:
