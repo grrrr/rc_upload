@@ -22,4 +22,4 @@ deploy:
     - curl --location --output $ZIPFILE "https://gitlab.grrrr.org/api/v4/projects/$PARENT_PROJECT_ID/jobs/artifacts/main/download?job=$PARENT_PIPELINE_JOB&job_token=$CI_JOB_TOKEN"
     - unzip $ZIPFILE -d $ARTIFACT_DIR || cat $ZIPFILE
     # transfer to RC
-    - make -C $ARTIFACT_DIR
+    - make DST=$ARTIFACT_DIR
