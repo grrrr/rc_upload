@@ -40,6 +40,7 @@ if __name__ == "__main__":
 	parser.add_argument("rc_user", type=str, help="RC username")
 	parser.add_argument("rc_pw", type=str, help="RC password")
 	parser.add_argument("source_dir", type=str, help="Source folder")
+	parser.add_argument("-V", "--verbose", action='store_true', help="Verbose output")
 
 	args = parser.parse_args()
 
@@ -48,6 +49,8 @@ if __name__ == "__main__":
 	filenames += glob(os.path.join(args.source_dir, '*', '*.css'))
 	filenames += glob(os.path.join(args.source_dir, '*', '*.html'))
 	filenames += glob(os.path.join(args.source_dir, '*', '*.md'))
+
+	print("Files:", filenames)
 
 	rc = RCEdit(args.rc_site_id) # RS intro
 	rc.login(username=args.rc_user, password=args.rc_pw)
@@ -68,7 +71,8 @@ if __name__ == "__main__":
 	css_global = ""
 	page_elements = elements.get('.', None)
 	if page_elements is not None:
-		print(f"Collecting global data")
+		if args.verbose:
+			print(f"Collecting global data")
 		for item_ext, items in page_elements.items():
 			# work on CSS files
 			if item_ext == '.css':
@@ -80,26 +84,16 @@ if __name__ == "__main__":
 
 	# walk through pages
 	for page_id, page_elements in elements.items():
-		print(f"Working on page {page_id}")
+		if args.verbose:
+			print(f"Working on page {page_id}")
+
+		css_content = str(css_global)
 
 		for item_ext, items in page_elements.items():
-			# work on CSS files
-			if item_ext == '.css':
-				# concatenate all available css files
-				content = css_global
-				for item_id, filename in items.items():
-					with open(filename, 'r') as f:
-						content += f.read()
-				# get page options
-				_, page_data = rc.page_options_get(page_id)
-				# add css entry
-				page_data['style']['rawcss'] = content
-				# set page options
-				rc.page_options_set(page_id, **page_data)
-				print(f"\tSet page rawcss")
 
-			# work on text files
-			elif item_ext in ('.html', '.md', '.txt'):
+			if item_ext in ('.html', '.md', '.txt'):
+				# work on text files
+
 				item_list = rc.item_list(page_id)
 				item_dict = {k:v[-1] for k,v in item_list.items()}
 
@@ -122,8 +116,30 @@ if __name__ == "__main__":
 					if item_type == 'html':
 						item_data['media']['textcontent'] = content
 						rc.item_set(item_id, **item_data)
-						print(f"\tModified item {item_id}")
+						if args.verbose:
+							print(f"\tModified item {item_id}")
 					else:
-						print(f"\tItem {item_id} type is not HTML")
+						if args.verbose:
+							print(f"\tItem {item_id} type is not HTML")
+
+			# work on CSS files
+			elif item_ext == '.css':
+				# concatenate all available css files
+				for item_id, filename in items.items():
+					with open(filename, 'r') as f:
+						css_content += f.read()
+
+
+		# Set CSS
+		if css_content:
+			# get page options
+			_, page_data = rc.page_options_get(page_id)
+			# add css entry
+			page_data['style']['rawcss'] = css_content
+			# set page options
+			rc.page_options_set(page_id, **page_data)
+			if args.verbose:
+				print(f"\tSet page rawcss")
+
 
 	rc.logout()
