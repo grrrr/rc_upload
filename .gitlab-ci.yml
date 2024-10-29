@@ -5,7 +5,7 @@ deploy:
   needs:
     - pipeline: $PARENT_PIPELINE_ID
       job: $PARENT_PIPELINE_JOB
-      artifacts: true # workaround for bug, see https://gitlab.com/gitlab-org/gitlab/-/issues/367229
+      artifacts: false # workaround for bug, see https://gitlab.com/gitlab-org/gitlab/-/issues/367229
   tags:
     - docker
     - rcedit
