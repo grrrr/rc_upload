@@ -6,7 +6,9 @@ deploy:
     - pipeline: $PARENT_PIPELINE_ID
       job: $PARENT_PIPELINE_JOB
       artifacts: false # workaround for bug, see https://gitlab.com/gitlab-org/gitlab/-/issues/367229
-  image: rc_upload
+  image:
+    name: "rc_upload"
+    pull_policy: never
   tags:
     - docker
     - rcedit
