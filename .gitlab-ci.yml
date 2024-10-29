@@ -17,8 +17,8 @@ deploy:
     - . ./bin/activate
     - pip3 install -r requirements.txt
     # fetch artifacts
-    - ZIPFILE=$(mktemp -t artifacts)
-    - ARTIFACT_DIR=$(mktemp -d -t artifacts)
+    - ZIPFILE=$(mktemp -t artifactXXXXX)
+    - ARTIFACT_DIR=$(mktemp -d -t artifactXXXXX)
     - curl --location --output $ZIPFILE "https://gitlab.grrrr.org/api/v4/projects/$PARENT_PROJECT_ID/jobs/artifacts/main/download?job=$PARENT_PIPELINE_JOB&job_token=$ARTIFACT_TOKEN"
     - unzip $ZIPFILE -d $ARTIFACT_DIR
     - ls -la $ARTIFACT_DIR
