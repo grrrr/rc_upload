@@ -50,8 +50,6 @@ if __name__ == "__main__":
 	filenames += glob(os.path.join(args.source_dir, '*', '*.html'))
 	filenames += glob(os.path.join(args.source_dir, '*', '*.md'))
 
-	print("Files:", filenames)
-
 	rc = RCEdit(args.rc_site_id) # RS intro
 	rc.login(username=args.rc_user, password=args.rc_pw)
 
@@ -99,9 +97,10 @@ if __name__ == "__main__":
 
 				for item_id, filename in items.items():
 					item_id = get_id(item_dict, item_id)
+					item_type, item_data = rc.item_get(item_id)
 
 					# Convert .md to .html with pandoc
-					if item_ext == '.md':
+					if item_ext != '.html':
 						with tempfile.NamedTemporaryFile(delete=False) as fp:
 							fp.close()
 							os.system(f"pandoc '{filename}' -F pandoc-crossref --citeproc -t html -o '{fp.name}'")
@@ -112,13 +111,13 @@ if __name__ == "__main__":
 						with open(filename, 'r') as f:
 							content = f.read()
 
-					item_type, item_data = rc.item_get(item_id)
 					if item_type == 'html':
 						item_data['media']['textcontent'] = content
 						rc.item_set(item_id, **item_data)
 						if args.verbose:
 							print(f"\tModified item {item_id}")
 					else:
+						# TODO: also make pure text fields available
 						if args.verbose:
 							print(f"\tItem {item_id} type is not HTML")
 
