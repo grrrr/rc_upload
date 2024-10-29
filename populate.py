@@ -104,7 +104,7 @@ if __name__ == "__main__":
 					if item_ext == '.md':
 						with tempfile.NamedTemporaryFile(delete=False) as fp:
 							fp.close()
-							os.system(f"pandoc '{filename}' -t html -o '{fp.name}'")
+							os.system(f"pandoc '{filename}' -F pandoc-crossref --citeproc -t html -o '{fp.name}'")
 							with open(fp.name, 'r') as f:
 								content = f.read()
 							os.remove(fp.name)
