@@ -20,13 +20,11 @@ def get_id(element_dict, element_id):
 
 	if is_num(element_id):
 		if not element_id in element_dict:
-			print(f"Element '{element_id}' not found", file=sys.stderr)
 			return None
 	else:
 		try:
 			element_id = element_name_id[element_id]
 		except KeyError:
-			print(f"Element '{element_id}' not found", file=sys.stderr)
 			return None
 
 	return element_id
@@ -65,8 +63,12 @@ if __name__ == "__main__":
 		path, item_id_and_ext = os.path.split(filename)
 		path = path.split(os.path.sep)[-1]
 		page_id = get_id(pages, path) if path != '.' else path
-		item_id, file_ext = os.path.splitext(item_id_and_ext)
-		elements[page_id][file_ext][item_id] = filename
+		if page_id is not None:
+			item_id, file_ext = os.path.splitext(item_id_and_ext)
+			elements[page_id][file_ext][item_id] = filename
+		else:
+			print(f"Page '{path}' not found", file=sys.stderr)
+
 
 	# collect global data
 	css_global = ""
@@ -81,14 +83,14 @@ if __name__ == "__main__":
 				# concatenate all available css files
 				for item_id, filename in items.items():
 					if args.verbose:
-						print(f"Using CSS file {filename} globally")
+						print(f"\tUsing CSS file {filename} globally")
 					with open(filename, 'r') as f:
 						css_global += f.read()
 			elif item_ext == '.bib':
 				# concatenate all available bib files
 				for item_id, filename in items.items():
 					if args.verbose:
-						print(f"Using bibtex file {filename} globally")
+						print(f"\tUsing bibtex file {filename} globally")
 					with open(filename, 'r') as f:
 						bib_global += f.read()
 		del elements['.']
@@ -145,32 +147,46 @@ if __name__ == "__main__":
 				item_list = rc.item_list(page_id)
 				item_dict = {k:v[-1] for k,v in item_list.items()}
 
-				for item_id, filename in items.items():
-					item_id = get_id(item_dict, item_id)
+				if False:
+					# list all items
+					for item_id,item_name in item_dict.items():
+						item_type, item_data = rc.item_get(item_id)
+						print(f"{item_id} {item_name} {item_type}")
+
+				for item_name, filename in items.items():
+					item_id = get_id(item_dict, item_name)
+					if item_id is None:
+						print(f"\tItem '{item_name}' not found", file=sys.stderr)
+						continue
+
 					item_type, item_data = rc.item_get(item_id)
+					# item types are: html, text, picture, audio, video, slideshow, pdf, shape, note, embed
 
-					# Convert .md to .html with pandoc
-					if item_ext != '.html':
-						with tempfile.NamedTemporaryFile(delete=False) as fp:
-							fp.close()
-							bib = f"--bibliography='{bib_fn}'" if bib_content else ""
-							os.system(f"pandoc '{filename}' --citeproc {bib} -t html -o '{fp.name}'")
-							with open(fp.name, 'r') as f:
+					if item_type in ('html', 'text'): #, 'note'):
+
+						if item_ext != '.html':
+							# Convert to .html with pandoc
+							with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as fp:
+								fp.close()
+								bib = f"--bibliography='{bib_fn}'" if bib_content else ""
+								os.system(f"pandoc '{filename}' --citeproc {bib} -t html -o '{fp.name}'")
+								with open(fp.name, 'r') as f:
+									content = f.read()
+								os.remove(fp.name)
+						else:
+							with open(filename, 'r') as f:
 								content = f.read()
-							os.remove(fp.name)
-					else:
-						with open(filename, 'r') as f:
-							content = f.read()
 
-					if item_type == 'html':
+						# set item
 						item_data['media']['textcontent'] = content
 						rc.item_set(item_id, **item_data)
 						if args.verbose:
 							print(f"\tModified item {item_id}")
+
 					else:
-						# TODO: also make pure text fields available
+						# item type not handled
 						if args.verbose:
-							print(f"\tItem {item_id} type is not HTML")
+							print(f"\tItem {item_id} type ({item_type}) currently not handled")
 
 		if bib_content:
 		# Delete page-specific bib file
