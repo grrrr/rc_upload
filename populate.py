@@ -46,9 +46,12 @@ if __name__ == "__main__":
 
 	filenames = []
 	filenames += glob(os.path.join(args.source_dir, '.', '*.css'))
+	filenames += glob(os.path.join(args.source_dir, '.', '*.bib'))
 	filenames += glob(os.path.join(args.source_dir, '*', '*.css'))
+	filenames += glob(os.path.join(args.source_dir, '*', '*.bib'))
 	filenames += glob(os.path.join(args.source_dir, '*', '*.html'))
 	filenames += glob(os.path.join(args.source_dir, '*', '*.md'))
+	filenames += glob(os.path.join(args.source_dir, '*', '*.txt'))
 
 	rc = RCEdit(args.rc_site_id) # RS intro
 	rc.login(username=args.rc_user, password=args.rc_pw)
@@ -67,6 +70,7 @@ if __name__ == "__main__":
 
 	# collect global data
 	css_global = ""
+	bib_global = ""
 	page_elements = elements.get('.', None)
 	if page_elements is not None:
 		if args.verbose:
@@ -76,8 +80,17 @@ if __name__ == "__main__":
 			if item_ext == '.css':
 				# concatenate all available css files
 				for item_id, filename in items.items():
+					if args.verbose:
+						print(f"Using CSS file {filename} globally")
 					with open(filename, 'r') as f:
 						css_global += f.read()
+			elif item_ext == '.bib':
+				# concatenate all available bib files
+				for item_id, filename in items.items():
+					if args.verbose:
+						print(f"Using bibtex file {filename} globally")
+					with open(filename, 'r') as f:
+						bib_global += f.read()
 		del elements['.']
 
 	# walk through pages
@@ -86,6 +99,43 @@ if __name__ == "__main__":
 			print(f"Working on page {page_id}")
 
 		css_content = str(css_global)
+		bib_content = str(bib_global)
+
+		# work on bib and CSS first
+		for item_ext, items in page_elements.items():
+			# work on CSS files
+			if item_ext == '.css':
+				# concatenate all available css files
+				for item_id, filename in items.items():
+					if args.verbose:
+						print(f"\tIncluding CSS file {filename}")
+					with open(filename, 'r') as f:
+						css_content += f.read()
+			elif item_ext == '.bib':
+				# concatenate all available css files
+				for item_id, filename in items.items():
+					if args.verbose:
+						print(f"\tIncluding bibtex file {filename}")
+					with open(filename, 'r') as f:
+						bib_content += f.read()
+
+		# Set CSS
+		if css_content:
+			# get page options
+			_, page_data = rc.page_options_get(page_id)
+			# add css entry
+			page_data['style']['rawcss'] = css_content
+			# set page options
+			rc.page_options_set(page_id, **page_data)
+			if args.verbose:
+				print(f"\tSet page rawcss")
+
+		# Make bib file
+		if bib_content:
+			with tempfile.NamedTemporaryFile('w', delete=False, suffix='.bib') as fp:
+				bib_fn = fp.name
+				fp.write(bib_content)
+				fp.close()
 
 		for item_ext, items in page_elements.items():
 
@@ -103,7 +153,8 @@ if __name__ == "__main__":
 					if item_ext != '.html':
 						with tempfile.NamedTemporaryFile(delete=False) as fp:
 							fp.close()
-							os.system(f"pandoc '{filename}' --citeproc -t html -o '{fp.name}'")
+							bib = f"--bibliography='{bib_fn}'" if bib_content else ""
+							os.system(f"pandoc '{filename}' --citeproc {bib} -t html -o '{fp.name}'")
 							with open(fp.name, 'r') as f:
 								content = f.read()
 							os.remove(fp.name)
@@ -121,24 +172,8 @@ if __name__ == "__main__":
 						if args.verbose:
 							print(f"\tItem {item_id} type is not HTML")
 
-			# work on CSS files
-			elif item_ext == '.css':
-				# concatenate all available css files
-				for item_id, filename in items.items():
-					with open(filename, 'r') as f:
-						css_content += f.read()
-
-
-		# Set CSS
-		if css_content:
-			# get page options
-			_, page_data = rc.page_options_get(page_id)
-			# add css entry
-			page_data['style']['rawcss'] = css_content
-			# set page options
-			rc.page_options_set(page_id, **page_data)
-			if args.verbose:
-				print(f"\tSet page rawcss")
-
+		if bib_content:
+		# Delete page-specific bib file
+			os.remove(bib_fn)
 
 	rc.logout()
