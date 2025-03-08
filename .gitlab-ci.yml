@@ -30,12 +30,12 @@ push_github:
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   tags:
-    - docker
-    - rcedit
+    - shell
   before_script:
     # prepare environment
-    - apt-get update -qq || true
-    - apt-get install git  -yy
+#    - apt-get update -qq || true
+#    - apt-get install git  -yy
+    - true
   script:
     - git remote add github https://$GITHUB_ACCESS_TOKEN@github.com/$GITHUB_USERNAME/$CI_PROJECT_NAME.git || true
     # we need some extra treatment because the gitlab-runner doesn't check out the full history
