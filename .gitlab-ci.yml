@@ -31,7 +31,7 @@ push_github:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   tags:
     - docker
-  image: bookworm-slim:latest
+  image: debian:bookworm-slim
   before_script:
     # prepare environment
     - apt-get update -qq || true
