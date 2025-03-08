@@ -31,11 +31,17 @@ push_github:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   tags:
     - shell
-  before_script:
-    # prepare environment
-    - true || apt-get update -qq || true
-    - true || apt-get install git  -yy
+  variables:
+    PUSH_GITHUB_PROJECT_ID: 178
   script:
-    - git remote add github https://$GITHUB_ACCESS_TOKEN@github.com/$GITHUB_USERNAME/$CI_PROJECT_NAME.git || true
-    # we need some extra treatment because the gitlab-runner doesn't check out the full history
-    - git push github HEAD:master --tags
+    # trigger ci_github project
+    - 
+      curl --request POST 
+      --form token=$PUSH_GITHUB_TOKEN 
+      --form ref=main 
+      --form variables[PARENT_PROJECT_ID]=$CI_PROJECT_ID
+      --form variables[PARENT_PROJECT_NAME]=$CI_PROJECT_NAME
+      --form variables[PARENT_PROJECT_REF]=$CI_COMMIT_REF_NAME
+      --form variables[PARENT_PIPELINE_ID]=$CI_PIPELINE_ID
+      --form variables[PARENT_PIPELINE_JOB]="build"
+      https://gitlab.grrrr.org/api/v4/projects/$PUSH_GITHUB_PROJECT_ID/trigger/pipeline
