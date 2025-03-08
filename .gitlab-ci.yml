@@ -44,7 +44,7 @@ push_github:
       curl --request POST 
       --form token=$PUSH_GITHUB_TOKEN 
       --form ref=main 
-      --form variables[PARENT_PROJECT_URL]=$CI_PROJECT_URL
+      --form variables[PARENT_PROJECT_PAth]=$CI_PROJECT_PATH
       --form variables[PARENT_PROJECT_NAME]=$CI_PROJECT_NAME
       --form variables[PARENT_PROJECT_REF]=$CI_COMMIT_REF_NAME
       --form variables[PARENT_JOB_TOKEN]=$CI_JOB_TOKEN
