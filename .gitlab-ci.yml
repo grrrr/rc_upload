@@ -9,13 +9,14 @@ deploy:
   tags:
     - docker
     - rcedit
-  script:
+  before_script:
     # prepare environment
     - apt-get update -qq || true
     - apt-get install git make python3 python3-venv pandoc curl unzip -yy
     - python3 -m venv .
     - . ./bin/activate
     - pip3 install -r requirements.txt
+  script:
     # fetch artifacts
     - ZIPFILE=$(mktemp -t artifactXXXXX)
     - ARTIFACT_DIR=$(mktemp -d -t artifactXXXXX)
@@ -28,6 +29,13 @@ push_github:
   stage: deploy
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  tags:
+    - docker
+    - rcedit
+  before_script:
+    # prepare environment
+    - apt-get update -qq || true
+    - apt-get install git  -yy
   script:
     - git remote add github https://$GITHUB_ACCESS_TOKEN@github.com/$GITHUB_USERNAME/$CI_PROJECT_NAME.git || true
     # we need some extra treatment because the gitlab-runner doesn't check out the full history
