@@ -33,9 +33,8 @@ push_github:
     - shell
   before_script:
     # prepare environment
-#    - apt-get update -qq || true
-#    - apt-get install git  -yy
-    - true
+    - true || apt-get update -qq || true
+    - true || apt-get install git  -yy
   script:
     - git remote add github https://$GITHUB_ACCESS_TOKEN@github.com/$GITHUB_USERNAME/$CI_PROJECT_NAME.git || true
     # we need some extra treatment because the gitlab-runner doesn't check out the full history
