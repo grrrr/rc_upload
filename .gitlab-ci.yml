@@ -20,7 +20,7 @@ deploy:
     # fetch artifacts
     - ZIPFILE=$(mktemp -t artifactXXXXX)
     - ARTIFACT_DIR=$(mktemp -d -t artifactXXXXX)
-    - curl --location --output $ZIPFILE --header "JOB-TOKEN:$CI_JOB_TOKEN" "https://gitlab.grrrr.org/api/v4/projects/$PARENT_PROJECT_ID/jobs/artifacts/$PARENT_PROJECT_REF/download?job=$PARENT_PIPELINE_JOB"
+    - curl --location --output $ZIPFILE --header "JOB-TOKEN:$CI_JOB_TOKEN" "${CI_API_V4_URL}/projects/$PARENT_PROJECT_ID/jobs/artifacts/$PARENT_PROJECT_REF/download?job=$PARENT_PIPELINE_JOB"
     - unzip $ZIPFILE -d $ARTIFACT_DIR || cat $ZIPFILE
     # transfer to RC
     - make DST=$ARTIFACT_DIR
@@ -44,8 +44,8 @@ push_github:
       curl --request POST 
       --form token=$PUSH_GITHUB_TOKEN 
       --form ref=main 
-      --form variables[PARENT_PROJECT_PATH]=$CI_REPOSITORY_URL
+      --form variables[PARENT_PROJECT_PATH]=$CI_PROJECT_PATH
       --form variables[PARENT_PROJECT_NAME]=$CI_PROJECT_NAME
       --form variables[PARENT_PROJECT_REF]=$CI_COMMIT_REF_NAME
       --form variables[PARENT_JOB_TOKEN]=$CI_JOB_TOKEN
-      https://gitlab.grrrr.org/api/v4/projects/$PUSH_GITHUB_PROJECT_ID/trigger/pipeline
+      ${CI_API_V4_URL}/projects/$PUSH_GITHUB_PROJECT_ID/trigger/pipeline
