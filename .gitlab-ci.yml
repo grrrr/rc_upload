@@ -30,18 +30,20 @@ push_github:
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   tags:
-    - shell
+    - docker
+  image: bookworm-slim:latest
+  before_script:
+    # prepare environment
+    - apt-get update -qq || true
+    - apt-get install curl  -yy
   variables:
     PUSH_GITHUB_PROJECT_ID: 178
   script:
-    # trigger ci_github project
+    # trigger push_github project
     - 
       curl --request POST 
       --form token=$PUSH_GITHUB_TOKEN 
       --form ref=main 
-      --form variables[PARENT_PROJECT_ID]=$CI_PROJECT_ID
       --form variables[PARENT_PROJECT_NAME]=$CI_PROJECT_NAME
       --form variables[PARENT_PROJECT_REF]=$CI_COMMIT_REF_NAME
-      --form variables[PARENT_PIPELINE_ID]=$CI_PIPELINE_ID
-      --form variables[PARENT_PIPELINE_JOB]="build"
       https://gitlab.grrrr.org/api/v4/projects/$PUSH_GITHUB_PROJECT_ID/trigger/pipeline
