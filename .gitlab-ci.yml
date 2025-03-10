@@ -4,7 +4,7 @@ build_docker:
 #    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
     - if: $CI_PIPELINE_SOURCE != "api" # not on trigger
   image: docker:latest
-  variable:
+  variables:
     IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   script:
     - docker build -t $IMAGE_NAME .
