@@ -1,16 +1,19 @@
-FROM debian:bookworm-slim
+FROM python:3-slim
 RUN echo "Europe/Vienna" > /etc/timezone \
  && apt-get update --yes --quiet \
  && apt-get install --yes --quiet --no-install-recommends \
-    git make python3 python3-venv pandoc curl unzip
+    make python3 python3-venv pandoc curl unzip
 
-COPY requirements.txt .
-COPY Makefile .
-COPY rc_upload.py .
+ENV VENV=/opt/venv
 
-RUN python3 -m venv .
-RUN . ./bin/activate
-RUN pip3 install -r requirements.txt
+RUN python3 -m venv $VENV
+
+COPY requirements.txt ./
+
+RUN source $VENV/bin/activate && pip install --no-cache-dir -r requirements.txt
+
+COPY Makefile ./
+COPY rc_upload.py ./
 
 # for make, we need RC_SITE_ID, RC_USER, RC_PW
-CMD ["make", "DST=."]
+CMD source $VENV/bin/activate && exec make DST=.
