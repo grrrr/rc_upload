@@ -10,10 +10,10 @@ RUN python3 -m venv $VENV
 
 COPY requirements.txt ./
 
-RUN source $VENV/bin/activate && pip install --no-cache-dir -r requirements.txt
+RUN . $VENV/bin/activate && pip install --no-cache-dir -r requirements.txt
 
 COPY Makefile ./
 COPY rc_upload.py ./
 
 # for make, we need RC_SITE_ID, RC_USER, RC_PW
-CMD source $VENV/bin/activate && exec make DST=.
+CMD . $VENV/bin/activate && exec make DST=.
