@@ -4,6 +4,7 @@ stages:
   - deploy
   - push
 
+
 build_docker:
   stage: build
   rules:
@@ -13,13 +14,13 @@ build_docker:
   variables:
     IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   script:
-    - echo Build docker image "$IMAGE_NAME"
     - docker build -t $IMAGE_NAME .
-    - mkdir -p images && docker save $IMAGE_NAME > images/$CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
+    - docker save $IMAGE_NAME > $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
   artifacts:
     paths:
-      - images
+      - *.tar
     expire_in: 1 hour
+
 
 register_docker:
   stage: register
@@ -35,7 +36,7 @@ register_docker:
     - build_docker
   script:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-    - docker load < images/$CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
+    - docker load < $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
     - docker push $IMAGE_NAME
 
 
