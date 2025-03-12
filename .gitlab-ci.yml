@@ -61,7 +61,7 @@ deploy:
 # Push rc_upload repo to github
 # --------------------------------------------------------------
 
-push_github:
+.push_github:
   stage: push
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH &&
@@ -85,3 +85,11 @@ push_github:
       --form variables[PARENT_PROJECT_NAME]=$CI_PROJECT_NAME
       --form variables[PARENT_PROJECT_REF]=$CI_COMMIT_REF_NAME
       ${CI_API_V4_URL}/projects/$PUSH_GITHUB_PROJECT_ID/trigger/pipeline
+
+push_github:
+  stage: push
+  tags:
+    - docker
+  image: $CI_REGISTRY/thomas/push_github
+  script:
+    - echo "Pushing to github"
