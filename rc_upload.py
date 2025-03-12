@@ -43,13 +43,12 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 
 	filenames = []
-	filenames += glob(os.path.join(args.source_dir, '.', '*.css'))
-	filenames += glob(os.path.join(args.source_dir, '.', '*.bib'))
-	filenames += glob(os.path.join(args.source_dir, '*', '*.css'))
-	filenames += glob(os.path.join(args.source_dir, '*', '*.bib'))
-	filenames += glob(os.path.join(args.source_dir, '*', '*.html'))
-	filenames += glob(os.path.join(args.source_dir, '*', '*.md'))
-	filenames += glob(os.path.join(args.source_dir, '*', '*.txt'))
+	# files to consider in root dir
+	for ext in ['css', 'bib']:
+		filenames += glob(os.path.join(args.source_dir, '.', f'*.{ext}'))
+	# files to consider in page dirs
+	for ext in ['css', 'bib', 'html', 'md', 'sh', 'py']:
+		filenames += glob(os.path.join(args.source_dir, '*', f'*.{ext}'))
 
 	rc = RCEdit(args.rc_site_id) # RS intro
 	rc.login(username=args.rc_user, password=args.rc_pw)
