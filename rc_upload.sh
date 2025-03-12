@@ -1,2 +1,5 @@
 #!/bin/bash
-. $VENV/bin/activate && exec make DST=.
+. $VENV/bin/activate
+echo "PWD: $PWD"
+ls "$PWD"
+exec make DST=.
