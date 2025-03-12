@@ -1,6 +1,5 @@
 stages:
   - build
-  - register
   - deploy
   - push
 
@@ -8,37 +7,17 @@ stages:
 build_docker:
   stage: build
   rules:
-#    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
-    - if: $CI_PIPELINE_SOURCE != "api" # not on trigger
-  image: docker:latest
-  variables:
-    IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-  script:
-    - docker build -t $IMAGE_NAME .
-    - docker save $IMAGE_NAME > $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
-  artifacts:
-    paths:
-      - "*.tar"
-    expire_in: 1 hour
-
-
-register_docker:
-  stage: register
-  allow_failure: true
-  rules:
-#    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
     - if: $CI_PIPELINE_SOURCE != "api" &&
          '$CI_COMMIT_TAG'
   image: docker:latest
   variables:
     IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-  needs: 
-    - build_docker
   script:
-    - docker load < $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
+    - docker build -t $IMAGE_NAME .
+#    - docker save $IMAGE_NAME > $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
+#    - docker load < $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker push $IMAGE_NAME
-
 
 deploy:
   stage: deploy
