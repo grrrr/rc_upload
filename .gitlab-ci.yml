@@ -17,15 +17,15 @@ build_docker:
   variables:
     IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   script:
-  - docker build -t $IMAGE_NAME .
+    - docker build -t $IMAGE_NAME .
 #    - docker save $IMAGE_NAME > $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
 #    - docker load < $CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG.tar
-  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-  - docker push $IMAGE_NAME
-  - if [ $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH ]; then
-    docker tag $IMAGE_NAME $CI_REGISTRY_IMAGE:latest;
-    docker push $CI_REGISTRY_IMAGE:latest;
-    fi
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker push $IMAGE_NAME
+    - if [ $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH ]; then
+      docker tag $IMAGE_NAME $CI_REGISTRY_IMAGE:latest;
+      docker push $CI_REGISTRY_IMAGE:latest;
+      fi
 
 
 # --------------------------------------------------------------
