@@ -14,4 +14,4 @@ RUN python3 -m venv $VENV
 RUN . $VENV/bin/activate && pip install --no-cache-dir -r requirements.txt
 
 # for make, we need environment variables VENV, RC_SITE_ID, RC_USER, RC_PW
-ENTRYPOINT ./rc_upload.sh
+ENTRYPOINT ["./rc_upload.sh"]
