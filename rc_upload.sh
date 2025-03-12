@@ -1,5 +1,5 @@
 #!/bin/bash
 . $VENV/bin/activate
 echo "PWD: $PWD"
-ls "$PWD/cache"
+find / -name references.bib
 exec make DST=.
