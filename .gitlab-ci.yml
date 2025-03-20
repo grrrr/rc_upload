@@ -69,5 +69,6 @@ push_github:
   tags:
     - docker
   image: $CI_REGISTRY/docker/push_github
+  allow_failure: true
   script:
     - echo "Pushing to github"
