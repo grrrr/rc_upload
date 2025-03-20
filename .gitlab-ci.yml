@@ -68,6 +68,7 @@ push_github:
   stage: push
   tags:
     - docker
+    - default
   image: $CI_REGISTRY/docker/push_github
   allow_failure: true
   script:
