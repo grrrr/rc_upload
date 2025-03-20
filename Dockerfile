@@ -10,6 +10,8 @@ COPY requirements.txt ./
 COPY Makefile ./
 COPY rc_upload.* ./
 
+RUN chmod +x *.sh *.py
+
 RUN python3 -m venv $VENV
 RUN . $VENV/bin/activate && pip install --no-cache-dir -r requirements.txt
 
