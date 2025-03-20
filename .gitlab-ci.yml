@@ -70,6 +70,8 @@ push_github:
     - docker
     - default
   image: $CI_REGISTRY/docker/push_github
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   allow_failure: true
   script:
     - echo "Pushing to github"
