@@ -113,7 +113,7 @@ if __name__ == "__main__":
 			print(f"Page '{path}' not found", file=sys.stderr)
 
 	# collect global data
-	css_global = b""
+	css_globals = []
 	bib_global = b""
 	page_elements = elements.get('.', None)
 	if page_elements is not None:
@@ -126,7 +126,7 @@ if __name__ == "__main__":
 				for item_id, filename in items.items():
 					if verbose:
 						print(f"\tUsing CSS file '{filename}' globally")
-					css_global += read_or_exec(filename, item_ext)
+					css_globals.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
 				# concatenate all available bib files
 				for item_id, filename in items.items():
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 		if verbose:
 			print(f"Working on page {page_id}")
 
-		css_content = b""
+		css_contents = []
 		bib_content = copy(bib_global)
 
 		# work on bib and CSS first
@@ -151,7 +151,7 @@ if __name__ == "__main__":
 				for item_id, filename in items.items():
 					if verbose:
 						print(f"\tIncluding CSS file '{filename}'")
-					css_content += read_or_exec(filename, item_ext)
+					css_contents.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
 				# concatenate all available css files
 				for item_id, filename in items.items():
@@ -159,22 +159,28 @@ if __name__ == "__main__":
 						print(f"\tIncluding bibtex file '{filename}'")
 					bib_content += read_or_exec(filename, item_ext)
 
+
 		# Set CSS
-		if css_global or css_content:
+		if css_globals or css_contents:
+
 			# get page options
 			_, page_data = rc.page_options_get(page_id)
 
-			# add css entry
+			# concatenate ordered (by filename) CSS definitions
+			css_content = b''.join(v for _,v in sorted(css_contents, key=lambda x: x[0]))
+			# add CSS entry
 			page_data['style']['rawcss'] = css_content
 			if verbose:
 				print(f"\tSet page rawcss")
 
-			if css_global:
-				# add site-wide css (only once)
+			if css_globals:
+				# concatenate ordered (by filename) CSS definitions
+				css_global = b''.join(v for _,v in sorted(css_globals, key=lambda x: x[0]))
+				# add site-wide CSS (only once)
 				page_data['style']['expositionrawcss'] = css_global
 				if verbose:
 					print(f"\tSet exposition-wide rawcss")
-				css_global = b""
+				css_globals = []
 
 			# set page options
 			rc.page_options_set(page_id, **page_data)
