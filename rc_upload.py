@@ -52,6 +52,7 @@ def read_or_exec(fn, ext):
 		# execute script
 		try:
 			os.chmod(fn, stat.S_IEXEC+stat.S_ISUID) # make executable for owner (SUID)
+			os.chdir(os.path.split(fn)[0])
 			with os.popen(fn) as f:
 				return f.read().encode("utf-8")
 		except IOError:
