@@ -1,0 +1,4 @@
+[submodule "rcedit"]
+	path = modules/rcedit
+	url = git@gitlab.grrrr.org:thomas/rcedit.git
+	branch = rc_new_interface
