@@ -17,7 +17,7 @@ def is_num(s):
 
 
 def get_id(element_dict, element_id):
-	element_name_id = {v:k for k,v in element_dict.items()}
+	element_name_id = {v: k for k,v in element_dict.items()}
 
 	if is_num(element_id):
 		if not element_id in element_dict:
@@ -170,17 +170,17 @@ if __name__ == "__main__":
 			# concatenate ordered (by filename) CSS definitions
 			css_content = b''.join(v for _,v in sorted(css_contents, key=lambda x: x[0]))
 			# add CSS entry
-			page_data['style']['rawcss'] = css_content
+			page_data['style[rawCss][rawCss]'] = css_content
 			if verbose:
-				print(f"\tSet page rawcss")
+				print(f"\tSet page rawCss")
 
 			if css_globals:
 				# concatenate ordered (by filename) CSS definitions
 				css_global = b''.join(v for _,v in sorted(css_globals, key=lambda x: x[0]))
 				# add site-wide CSS (only once)
-				page_data['style']['expositionrawcss'] = css_global
+				page_data['style[rawCss][expositionRawCss]'] = css_global
 				if verbose:
-					print(f"\tSet exposition-wide rawcss")
+					print(f"\tSet exposition-wide rawCss")
 				css_globals = []
 
 			# set page options
@@ -198,24 +198,25 @@ if __name__ == "__main__":
 			if item_ext in text_plus_script_exts:
 				# work on text files
 
-				item_list = rc.item_list(page_id)
-				item_dict = {k:v[-1] for k,v in item_list.items()}
+				item_list = dict(rc.item_list(page_id).items())
+				item_dict = {k:v[1] for k,v in item_list.items()}
 
 				if False:
 					# list all items
-					for item_id,item_name in item_dict.items():
-						item_type, item_data = rc.item_get(item_id)
+					for item_id,(item_type, item_name) in item_list.items():
+						item_type, item_data = rc.item_get(page_id, item_id)
 
 				for item_name, filename in items.items():
 					item_id = get_id(item_dict, item_name)
 					if item_id is None:
-						print(f"\tItem '{item_name}' not found", file=sys.stderr)
+						print(f"\tItem '{item_name}' not found in page {page_id}", file=sys.stderr)
 						continue
 
-					item_type, item_data = rc.item_get(item_id)
-					# item types are: html, text, picture, audio, video, slideshow, pdf, shape, note, embed
+					_, item_data = rc.item_get(page_id, item_id)
+					item_type = item_list[item_id][0]
+					# item types are: text (i.e., html), simpletext, picture, audio, video, slideshow, pdf, shape, note, embed
 
-					if item_type in ('html', 'text'): #, 'note'):
+					if item_type == 'text': #, 'note'):
 						if item_ext in ext_plus_scripts('.html'):
 							content = read_or_exec(filename, item_ext)
 						else:
@@ -245,8 +246,8 @@ if __name__ == "__main__":
 								os.remove(genname)
 
 						# set item
-						item_data['media']['textcontent'] = content
-						rc.item_set(item_id, **item_data)
+						item_data['media[textContent]'] = content
+						rc.item_set(page_id, item_id, **item_data)
 						if verbose:
 							print(f"\tModified item {item_id} from '{filename}'")
 
