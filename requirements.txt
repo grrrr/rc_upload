@@ -1,1 +1,3 @@
 rcedit >= 0.7
+pyyaml
+

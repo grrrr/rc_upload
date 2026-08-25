@@ -6,7 +6,11 @@ import tempfile
 from glob import glob
 from collections import defaultdict
 from copy import copy
-
+from functools import reduce
+import subprocess
+import yaml
+import pdb
+import re
 
 def is_num(s):
 	try:
@@ -31,6 +35,7 @@ def get_id(element_dict, element_id):
 	return element_id
 
 text_exts = ['.html', '.md', '.txt']
+cfg_exts = ['.yml', '.yaml']
 aux_exts = ['.css', '.bib']
 script_exts = ['.sh', '.py']
 
@@ -46,21 +51,53 @@ for t in text_exts:
 	text_plus_script_exts += ext_plus_scripts(t)
 text_plus_script_exts = set(text_plus_script_exts)
 
+cfg_ext_plus_scripts = reduce(lambda x,y: x+y, (ext_plus_scripts(ext) for ext in cfg_exts))
+
+
 def read_or_exec(fn, ext):
+	content = b''
 	if ext in ext_scripts(ext):
 #		print(f"Executing {fn}")
 		# execute script
-		try:
-			os.chmod(fn, stat.S_IEXEC+stat.S_ISUID) # make executable for owner (SUID)
-			os.chdir(os.path.split(fn)[0])
-			with os.popen(f"'{fn}'") as f:
-				return f.read().encode("utf-8")
-		except IOError:
-			print(f"Cannot execute {fn}", file=sys.stderr)
+		if False:
+			try:
+				st = os.stat(fn)
+				os.chmod(fn, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+#				os.chmod(fn, stat.S_IEXEC+stat.S_ISUID) # make executable for owner (SUID)
+				os.chdir(os.path.split(fn)[0])
+				with os.popen(f"'{fn}'") as f:
+					content = f.read().encode("utf-8")
+			except IOError:
+				print(f"Cannot execute {fn}", file=sys.stderr)
+		else:
+			try:
+				st = os.stat(fn)
+				os.chmod(fn, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+				result = subprocess.run([fn], capture_output=True, text=True, check=True)
+				content = result.stdout.encode("utf-8")
+			except IOError:
+				print(f"Cannot execute {fn}", file=sys.stderr)
 	else:
 #		print(f"Reading {fn}")
 		with open(fn, 'rb') as f:
-			return f.read()
+			content = f.read()
+
+	# convert content depending on format
+	if ext in ('.yml', '.yaml'):
+		content = yaml.safe_load(content)
+
+	return content
+
+
+def yaml_headers(content: str) -> dict:
+	"""
+	Extract YAML header data from a pandoc markdown file
+	"""
+	m = re.match(rb'^---\n(.*?)\n---\n', content, re.DOTALL)
+	if m is not None:
+	    return yaml.safe_load(m.group(1))
+	else:
+		return {}
 
 
 if __name__ == "__main__":
@@ -82,11 +119,14 @@ if __name__ == "__main__":
 	# collect files
 	filenames = []
 	# files to consider in root dir
-	for ext in aux_exts+script_exts:
+	for ext in aux_exts+script_exts+cfg_exts:
 		filenames += glob(os.path.join(args.source_dir, '.', f'*{ext}'))
 	# files to consider in page dirs
-	for ext in text_exts+aux_exts+script_exts:
+	for ext in text_exts+aux_exts+script_exts+cfg_exts:
 		filenames += glob(os.path.join(args.source_dir, '*', f'*{ext}'))
+
+	if verbose:
+		print("Files", filenames)
 
 	# log into RC
 	rc = RCEdit(args.rc_site_id) # RS intro
@@ -113,28 +153,47 @@ if __name__ == "__main__":
 		else:
 			print(f"Page '{path}' not found", file=sys.stderr)
 
+	if verbose:
+		print("Elements", elements)
+
 	# collect global data
 	css_globals = []
-	bib_global = b""
-	page_elements = elements.get('.', None)
-	if page_elements is not None:
+	cfg_global = {}
+	bib_global = ""
+
+	global_elements = elements.get('.', None)
+	if global_elements:
+		# Global data
 		if verbose:
 			print(f"Collecting global data")
-		for item_ext, items in page_elements.items():
+		for item_ext, items in global_elements.items():
 			# work on CSS files
 			if item_ext in ext_plus_scripts('.css'):
 				# concatenate all available css files
-				for item_id, filename in items.items():
+				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing CSS file '{filename}' globally")
 					css_globals.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
 				# concatenate all available bib files
-				for item_id, filename in items.items():
+				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing bibtex file '{filename}' globally")
 					bib_global += read_or_exec(filename, item_ext)
+			elif item_ext in cfg_ext_plus_scripts:
+				# concatenate all available cfg files
+				for _, filename in items.items():
+					if verbose:
+						print(f"\tUsing cfg file '{filename}' globally")
+					cfg_global.update(read_or_exec(filename, item_ext))
+
 		del elements['.']
+
+	if cfg_global:
+		meta = rc.meta_get()
+		meta.update(cfg_global)
+		rc.meta_set(**meta)
+
 
 	# walk through pages
 	for page_id, page_elements in elements.items():
@@ -142,24 +201,38 @@ if __name__ == "__main__":
 			print(f"Working on page {page_id}")
 
 		css_contents = []
+		cfg_content = {}
 		bib_content = copy(bib_global)
 
-		# work on bib and CSS first
+		# work on CSS, bib and cfg first
 		for item_ext, items in page_elements.items():
 			# work on CSS files
 			if item_ext in ext_plus_scripts('.css'):
 				# concatenate all available css files
-				for item_id, filename in items.items():
+				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding CSS file '{filename}'")
 					css_contents.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
-				# concatenate all available css files
-				for item_id, filename in items.items():
+				# concatenate all available bib files
+				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding bibtex file '{filename}'")
 					bib_content += read_or_exec(filename, item_ext)
+			elif False and item_ext in cfg_ext_plus_scripts:
+				# concatenate all available cfg files
+				for _, filename in items.items():
+					if verbose:
+						print(f"\tIncluding cfg file '{filename}'")
+					cfg_content.update(read_or_exec(filename, item_ext))
 
+
+		# Set config
+		if cfg_content:
+			pdb.set_trace()
+			_,o = rc.page_options_get(page_id)
+			o.update(cfg_content)
+			rc.page_options_set(page_id, **o)
 
 		# Set CSS
 		if css_globals or css_contents:
@@ -193,13 +266,21 @@ if __name__ == "__main__":
 				fp.write(bib_content)
 				fp.close()
 
+
+		item_list = dict(rc.item_list(page_id).items())
+		item_dict = {k:v[1] for k,v in item_list.items()}
+
+		# get config
+		config = {}
+		for item_ext, items in page_elements.items():
+			if item_ext in cfg_ext_plus_scripts:
+				for item_name, filename in items.items():
+					config[item_name] = read_or_exec(filename, item_ext)
+
 		for item_ext, items in page_elements.items():
 
 			if item_ext in text_plus_script_exts:
 				# work on text files
-
-				item_list = dict(rc.item_list(page_id).items())
-				item_dict = {k:v[1] for k,v in item_list.items()}
 
 				if False:
 					# list all items
@@ -216,6 +297,13 @@ if __name__ == "__main__":
 					item_type = item_list[item_id][0]
 					# item types are: text (i.e., html), simpletext, picture, audio, video, slideshow, pdf, shape, note, embed
 
+					# set config
+					item_cfg = config.get(item_name, None)
+					if item_cfg:
+						item_data.update(item_cfg)
+						if verbose:
+							print(f"\tFound config for {item_name}({item_id})")
+
 					if item_type == 'text': #, 'note'):
 						if item_ext in ext_plus_scripts('.html'):
 							content = read_or_exec(filename, item_ext)
@@ -226,6 +314,13 @@ if __name__ == "__main__":
 							if item_ext in ext_scripts(item_ext):
 								content = read_or_exec(filename, item_ext)
 								extext = os.path.splitext(item_ext)[0]
+
+								if extext == '.md':
+									cfg = yaml_headers(content)
+									item_data.update(cfg)
+									if verbose and cfg:
+										print(f"\tconfig found in {filename}")
+
 								with tempfile.NamedTemporaryFile('wb', delete=False, suffix=extext) as fp:
 									fp.write(content)
 									filename = fp.name
@@ -249,7 +344,7 @@ if __name__ == "__main__":
 						item_data['media[textContent]'] = content
 						rc.item_set(page_id, item_id, **item_data)
 						if verbose:
-							print(f"\tModified item {item_id} from '{filename}'")
+							print(f"\tModified item {item_name}({item_id}) from '{filename}'")
 
 					else:
 						# item type not handled
