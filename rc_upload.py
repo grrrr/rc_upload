@@ -11,6 +11,7 @@ import subprocess
 import yaml
 import pdb
 import re
+from datetime import datetime
 
 def is_num(s):
 	try:
@@ -125,12 +126,15 @@ if __name__ == "__main__":
 	for ext in text_exts+aux_exts+script_exts+cfg_exts:
 		filenames += glob(os.path.join(args.source_dir, '*', f'*{ext}'))
 
-	if verbose:
-		print("Files", filenames)
-
 	# log into RC
 	rc = RCEdit(args.rc_site_id) # RS intro
 	rc.login(username=args.rc_user, password=args.rc_pw)
+
+	# get basic info
+	info = rc.info_get()
+	last_modified = datetime.strptime(info['last modified'], "%d/%m/%Y").date()
+	if verbose:
+		print(f"Last modified: {last_modified}", )
 
 	# get pages
 	pages = rc.page_list()
@@ -152,9 +156,6 @@ if __name__ == "__main__":
 			elements[page_id][file_ext][item_id] = filename
 		else:
 			print(f"Page '{path}' not found", file=sys.stderr)
-
-	if verbose:
-		print("Elements", elements)
 
 	# collect global data
 	css_globals = []
@@ -190,15 +191,16 @@ if __name__ == "__main__":
 		del elements['.']
 
 	if cfg_global:
-		meta = rc.meta_get()
+		_,meta = rc.meta_get()
 		meta.update(cfg_global)
 		rc.meta_set(**meta)
 
 
 	# walk through pages
 	for page_id, page_elements in elements.items():
+		page_name = pages[str(page_id)]
 		if verbose:
-			print(f"Working on page {page_id}")
+			print(f"Working on page {page_name}({page_id})")
 
 		css_contents = []
 		cfg_content = {}
@@ -228,8 +230,7 @@ if __name__ == "__main__":
 
 
 		# Set config
-		if cfg_content:
-			pdb.set_trace()
+		if False and cfg_content:
 			_,o = rc.page_options_get(page_id)
 			o.update(cfg_content)
 			rc.page_options_set(page_id, **o)
@@ -301,11 +302,10 @@ if __name__ == "__main__":
 					item_cfg = config.get(item_name, None)
 					if item_cfg:
 						item_data.update(item_cfg)
-						if verbose:
-							print(f"\tFound config for {item_name}({item_id})")
 
-					if item_type == 'text': #, 'note'):
+					if item_type in ('text', 'simpletext'):
 						if item_ext in ext_plus_scripts('.html'):
+							# no need to convert html input for html item
 							content = read_or_exec(filename, item_ext)
 						else:
 							# Convert to .html with pandoc
@@ -327,8 +327,6 @@ if __name__ == "__main__":
 							if extext == '.md':
 								cfg = yaml_headers(content)
 								item_data.update(cfg)
-								if verbose and cfg:
-									print(f"\tconfig found in {filename}")
 
 							# now work on the read/generated source
 							with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as fp:
@@ -344,7 +342,9 @@ if __name__ == "__main__":
 
 
 						# set item
-						item_data['media[textContent]'] = content
+						# ATT: it is textContent for text and textcontent for simpletext... we need to explore
+						keyname = "textContent" if item_type == 'text' else "textcontent"
+						item_data[f'media[{keyname}]'] = content
 						rc.item_set(page_id, item_id, **item_data)
 						if verbose:
 							print(f"\tModified item {item_name}({item_id}) from '{filename}'")
