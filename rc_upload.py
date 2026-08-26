@@ -311,22 +311,24 @@ if __name__ == "__main__":
 							# Convert to .html with pandoc
 
 							# if we have a script, we first need to generate the source
+							content = read_or_exec(filename, item_ext)
 							if item_ext in ext_scripts(item_ext):
-								content = read_or_exec(filename, item_ext)
 								extext = os.path.splitext(item_ext)[0]
-
-								if extext == '.md':
-									cfg = yaml_headers(content)
-									item_data.update(cfg)
-									if verbose and cfg:
-										print(f"\tconfig found in {filename}")
 
 								with tempfile.NamedTemporaryFile('wb', delete=False, suffix=extext) as fp:
 									fp.write(content)
 									filename = fp.name
 								genname = filename
 							else:
+								extext = item_ext
 								genname = None
+
+							# check for yaml config
+							if extext == '.md':
+								cfg = yaml_headers(content)
+								item_data.update(cfg)
+								if verbose and cfg:
+									print(f"\tconfig found in {filename}")
 
 							# now work on the read/generated source
 							with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as fp:
@@ -339,6 +341,7 @@ if __name__ == "__main__":
 
 							if genname is not None:
 								os.remove(genname)
+
 
 						# set item
 						item_data['media[textContent]'] = content
