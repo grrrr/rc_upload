@@ -1,3 +1,2 @@
-rcedit >= 0.7
+rcedit >= 0.8
 pyyaml
-

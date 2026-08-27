@@ -35,6 +35,11 @@ def get_id(element_dict, element_id):
 
 	return element_id
 
+def file_modtime(fn):
+	mtime = os.path.getmtime(fn) # float: seconds since epoch
+	return datetime.fromtimestamp(mtime)
+
+
 text_exts = ['.html', '.md', '.txt']
 cfg_exts = ['.yml', '.yaml']
 aux_exts = ['.css', '.bib']
@@ -109,6 +114,7 @@ if __name__ == "__main__":
 	parser.add_argument("rc_user", type=str, help="RC username")
 	parser.add_argument("rc_pw", type=str, help="RC password")
 	parser.add_argument("source_dir", type=str, help="Source folder")
+	parser.add_argument("-U", "--update", action='store_true', help="Update only (compare source with RC modification date)")
 	parser.add_argument("-V", "--verbose", action='store_true', help="Verbose output")
 
 	args = parser.parse_args()
@@ -162,6 +168,7 @@ if __name__ == "__main__":
 	cfg_global = {}
 	bib_global = ""
 
+	global_timestamp = float("inf")
 	global_elements = elements.get('.', None)
 	if global_elements:
 		# Global data
@@ -174,21 +181,28 @@ if __name__ == "__main__":
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing CSS file '{filename}' globally")
+					global_timestamp = min(global_timestamp, os.path.getmtime(filename))
 					css_globals.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
 				# concatenate all available bib files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing bibtex file '{filename}' globally")
+					global_timestamp = min(global_timestamp, os.path.getmtime(filename))
 					bib_global += read_or_exec(filename, item_ext)
 			elif item_ext in cfg_ext_plus_scripts:
 				# concatenate all available cfg files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing cfg file '{filename}' globally")
+					global_timestamp = min(global_timestamp, os.path.getmtime(filename))
 					cfg_global.update(read_or_exec(filename, item_ext))
 
 		del elements['.']
+	try:
+		global_moddate = datetime.fromtimestamp(global_timestamp)
+	except OverflowError:
+		global_moddate = datetime.max
 
 	if cfg_global:
 		_,meta = rc.meta_get()
@@ -206,6 +220,10 @@ if __name__ == "__main__":
 		cfg_content = {}
 		bib_content = copy(bib_global)
 
+		css_timestamp = float("inf")
+		bib_timestamp = float("inf")
+		cfg_timestamp = float("inf")
+
 		# work on CSS, bib and cfg first
 		for item_ext, items in page_elements.items():
 			# work on CSS files
@@ -214,20 +232,37 @@ if __name__ == "__main__":
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding CSS file '{filename}'")
+					css_timestamp = min(css_timestamp, os.path.getmtime(filename))
 					css_contents.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
 				# concatenate all available bib files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding bibtex file '{filename}'")
+					bib_timestamp = min(bib_timestamp, os.path.getmtime(filename))
 					bib_content += read_or_exec(filename, item_ext)
 			elif False and item_ext in cfg_ext_plus_scripts:
 				# concatenate all available cfg files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding cfg file '{filename}'")
+					cfg_timestamp = min(cfg_timestamp, os.path.getmtime(filename))
 					cfg_content.update(read_or_exec(filename, item_ext))
 
+		try:
+			css_timestamp = datetime.fromtimestamp(css_timestamp)
+		except OverflowError:
+			css_timestamp = datetime.max
+
+		try:
+			bib_timestamp = datetime.fromtimestamp(bib_timestamp)
+		except OverflowError:
+			bib_timestamp = datetime.max
+
+		try:
+			cfg_timestamp = datetime.fromtimestamp(cfg_timestamp)
+		except OverflowError:
+			cfg_timestamp = datetime.max
 
 		# Set config
 		if False and cfg_content:
@@ -279,20 +314,16 @@ if __name__ == "__main__":
 					config[item_name] = read_or_exec(filename, item_ext)
 
 		for item_ext, items in page_elements.items():
-
 			if item_ext in text_plus_script_exts:
 				# work on text files
-
-				if False:
-					# list all items
-					for item_id,(item_type, item_name) in item_list.items():
-						item_type, item_data = rc.item_get(page_id, item_id)
 
 				for item_name, filename in items.items():
 					item_id = get_id(item_dict, item_name)
 					if item_id is None:
 						print(f"\tItem '{item_name}' not found in page {page_id}", file=sys.stderr)
 						continue
+
+					item_timestamp = os.path.getmtime(filename)
 
 					_, item_data = rc.item_get(page_id, item_id)
 					item_type = item_list[item_id][0]
