@@ -35,10 +35,6 @@ def get_id(element_dict, element_id):
 
 	return element_id
 
-def file_modtime(fn):
-	mtime = os.path.getmtime(fn) # float: seconds since epoch
-	return datetime.fromtimestamp(mtime)
-
 
 text_exts = ['.html', '.md', '.txt']
 cfg_exts = ['.yml', '.yaml']
@@ -106,6 +102,18 @@ def yaml_headers(content: str) -> dict:
 		return {}
 
 
+class ModTime:
+	def __init__(self):
+		self.timestamp = float('inf')
+	def update(self, fn):
+		self.timestamp = min(self.timestamp, os.path.getmtime(fn))
+	def get(self):
+		try:
+			return datetime.fromtimestamp(self.timestamp)
+		except OverflowError:
+			return datetime.max
+
+
 if __name__ == "__main__":
 	from argparse import ArgumentParser
 	parser = ArgumentParser()
@@ -166,9 +174,12 @@ if __name__ == "__main__":
 	# collect global data
 	css_globals = []
 	cfg_global = {}
-	bib_global = ""
+	bib_global = b""
 
-	global_timestamp = float("inf")
+	cfg_mod_date = ModTime()
+	bib_mod_date = ModTime()
+	css_mod_date = ModTime()
+
 	global_elements = elements.get('.', None)
 	if global_elements:
 		# Global data
@@ -181,32 +192,37 @@ if __name__ == "__main__":
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing CSS file '{filename}' globally")
-					global_timestamp = min(global_timestamp, os.path.getmtime(filename))
+					css_mod_date.update(filename)
 					css_globals.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
 				# concatenate all available bib files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing bibtex file '{filename}' globally")
-					global_timestamp = min(global_timestamp, os.path.getmtime(filename))
+					bib_mod_date.update(filename)
 					bib_global += read_or_exec(filename, item_ext)
 			elif item_ext in cfg_ext_plus_scripts:
 				# concatenate all available cfg files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tUsing cfg file '{filename}' globally")
-					global_timestamp = min(global_timestamp, os.path.getmtime(filename))
+					cfg_mod_date.update(filename)
 					cfg_global.update(read_or_exec(filename, item_ext))
 
 		del elements['.']
-	try:
-		global_moddate = datetime.fromtimestamp(global_timestamp)
-	except OverflowError:
-		global_moddate = datetime.max
+		css_mod_date = css_mod_date.get()
+		bib_mod_date = bib_mod_date.get()
+		cfg_mod_date = cfg_mod_date.get()
 
 	if cfg_global:
 		_,meta = rc.meta_get()
-		meta.update(cfg_global)
+		if False:
+			meta.update(cfg_global)
+			for k,v in cfg_global.items():
+				if k not in meta:
+					print(f"Meta: {k} not in")
+#		else:
+#			print("Meta: ", repr(meta))
 		rc.meta_set(**meta)
 
 
@@ -220,9 +236,9 @@ if __name__ == "__main__":
 		cfg_content = {}
 		bib_content = copy(bib_global)
 
-		css_timestamp = float("inf")
-		bib_timestamp = float("inf")
-		cfg_timestamp = float("inf")
+		css_page_mod = ModTime()
+		bib_page_mod = ModTime()
+		cfg_page_mod = ModTime()
 
 		# work on CSS, bib and cfg first
 		for item_ext, items in page_elements.items():
@@ -232,37 +248,26 @@ if __name__ == "__main__":
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding CSS file '{filename}'")
-					css_timestamp = min(css_timestamp, os.path.getmtime(filename))
+					css_page_mod.update(filename)
 					css_contents.append((filename, read_or_exec(filename, item_ext)))
 			elif item_ext in ext_plus_scripts('.bib'):
 				# concatenate all available bib files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding bibtex file '{filename}'")
-					bib_timestamp = min(bib_timestamp, os.path.getmtime(filename))
+					bib_page_mod.update(filename)
 					bib_content += read_or_exec(filename, item_ext)
 			elif False and item_ext in cfg_ext_plus_scripts:
 				# concatenate all available cfg files
 				for _, filename in items.items():
 					if verbose:
 						print(f"\tIncluding cfg file '{filename}'")
-					cfg_timestamp = min(cfg_timestamp, os.path.getmtime(filename))
+					cfg_page_mod.update(filename)
 					cfg_content.update(read_or_exec(filename, item_ext))
 
-		try:
-			css_timestamp = datetime.fromtimestamp(css_timestamp)
-		except OverflowError:
-			css_timestamp = datetime.max
-
-		try:
-			bib_timestamp = datetime.fromtimestamp(bib_timestamp)
-		except OverflowError:
-			bib_timestamp = datetime.max
-
-		try:
-			cfg_timestamp = datetime.fromtimestamp(cfg_timestamp)
-		except OverflowError:
-			cfg_timestamp = datetime.max
+		css_page_date = css_page_mod.get()
+		bib_page_date = bib_page_mod.get()
+		cfg_page_date = cfg_page_mod.get()
 
 		# Set config
 		if False and cfg_content:
@@ -302,7 +307,6 @@ if __name__ == "__main__":
 				fp.write(bib_content)
 				fp.close()
 
-
 		item_list = dict(rc.item_list(page_id).items())
 		item_dict = {k:v[1] for k,v in item_list.items()}
 
@@ -323,7 +327,7 @@ if __name__ == "__main__":
 						print(f"\tItem '{item_name}' not found in page {page_id}", file=sys.stderr)
 						continue
 
-					item_timestamp = os.path.getmtime(filename)
+					item_mod_date = os.path.getmtime(filename)
 
 					_, item_data = rc.item_get(page_id, item_id)
 					item_type = item_list[item_id][0]
