@@ -216,15 +216,8 @@ if __name__ == "__main__":
 
 	if cfg_global:
 		_,meta = rc.meta_get()
-		if False:
-			meta.update(cfg_global)
-			for k,v in cfg_global.items():
-				if k not in meta:
-					print(f"Meta: {k} not in")
-#		else:
-#			print("Meta: ", repr(meta))
+		meta.update(cfg_global)
 		rc.meta_set(**meta)
-
 
 	# walk through pages
 	for page_id, page_elements in elements.items():
