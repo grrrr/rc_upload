@@ -127,6 +127,7 @@ if __name__ == "__main__":
 
 	args = parser.parse_args()
 	verbose = args.verbose
+	update = args.update
 
 	# for scripts, change current to `source_dir`
 	os.chdir(args.source_dir)
@@ -146,9 +147,9 @@ if __name__ == "__main__":
 
 	# get basic info
 	info = rc.info_get()
-	last_modified = datetime.strptime(info['last modified'], "%d/%m/%Y").date()
+	site_modified = datetime.strptime(info['last modified'], "%d/%m/%Y").date()
 	if verbose:
-		print(f"Last modified: {last_modified}", )
+		print(f"Last modified: {site_modified}", )
 
 	# get pages
 	pages = rc.page_list()
@@ -210,14 +211,22 @@ if __name__ == "__main__":
 					cfg_global.update(read_or_exec(filename, item_ext))
 
 		del elements['.']
-		css_mod_date = css_mod_date.get()
-		bib_mod_date = bib_mod_date.get()
-		cfg_mod_date = cfg_mod_date.get()
 
-	if cfg_global:
+	css_global_date = css_mod_date.get().date()
+	bib_global_date = bib_mod_date.get().date()
+	cfg_global_date = cfg_mod_date.get().date()
+	if verbose:
+		print(f"Global data modified: cfg={cfg_global_date}, bib={bib_global_date}, css={css_global_date}")
+
+	css_global_update = css_globals and (css_global_date >= site_modified or not update)
+	bib_global_update = bib_global and (bib_global_date >= site_modified or not update)
+	cfg_global_update = cfg_global and (cfg_global_date >= site_modified or not update)
+
+	if cfg_global_update:
 		_,meta = rc.meta_get()
 		meta.update(cfg_global)
 		rc.meta_set(**meta)
+
 
 	# walk through pages
 	for page_id, page_elements in elements.items():
@@ -250,6 +259,7 @@ if __name__ == "__main__":
 						print(f"\tIncluding bibtex file '{filename}'")
 					bib_page_mod.update(filename)
 					bib_content += read_or_exec(filename, item_ext)
+			# TODO: we don't know how to handle page config yet
 			elif False and item_ext in cfg_ext_plus_scripts:
 				# concatenate all available cfg files
 				for _, filename in items.items():
@@ -258,39 +268,59 @@ if __name__ == "__main__":
 					cfg_page_mod.update(filename)
 					cfg_content.update(read_or_exec(filename, item_ext))
 
-		css_page_date = css_page_mod.get()
-		bib_page_date = bib_page_mod.get()
-		cfg_page_date = cfg_page_mod.get()
+		css_page_date = css_page_mod.get().date()
+		bib_page_date = bib_page_mod.get().date()
+		cfg_page_date = cfg_page_mod.get().date()
+		if verbose:
+			print(f"\tPage data modified: cfg={cfg_page_date}, bib={bib_page_date}, css={css_page_date}")
+
+		css_page_update = css_contents and (css_page_date >= site_modified or not update)
+		bib_page_update = bib_content and (bib_page_date >= site_modified or not update)
+		cfg_page_update = cfg_content and (cfg_page_date >= site_modified or not update)
+
+		page_data_needed = False
+		page_data_mod = False
 
 		# Set config
-		if False and cfg_content:
-			_,o = rc.page_options_get(page_id)
-			o.update(cfg_content)
-			rc.page_options_set(page_id, **o)
+		if cfg_page_update:
+			page_data_needed = True
 
 		# Set CSS
-		if css_globals or css_contents:
+		if css_global_update or css_page_update:
+			page_data_needed = True
 
-			# get page options
+		if page_data_needed:
+			# read page options
 			_, page_data = rc.page_options_get(page_id)
+			page_data_mod = False
 
+		if css_page_update:
 			# concatenate ordered (by filename) CSS definitions
 			css_content = b''.join(v for _,v in sorted(css_contents, key=lambda x: x[0]))
 			# add CSS entry
 			page_data['style[rawCss][rawCss]'] = css_content
 			if verbose:
 				print(f"\tSet page rawCss")
+			page_data_mod = True
 
-			if css_globals:
-				# concatenate ordered (by filename) CSS definitions
-				css_global = b''.join(v for _,v in sorted(css_globals, key=lambda x: x[0]))
-				# add site-wide CSS (only once)
-				page_data['style[rawCss][expositionRawCss]'] = css_global
-				if verbose:
-					print(f"\tSet exposition-wide rawCss")
-				css_globals = []
+		if css_global_update:
+			# concatenate ordered (by filename) CSS definitions
+			css_global = b''.join(v for _,v in sorted(css_globals, key=lambda x: x[0]))
+			# add site-wide CSS (only once)
+			page_data['style[rawCss][expositionRawCss]'] = css_global
+			if verbose:
+				print(f"\tSet exposition-wide rawCss")
+			# clear global CSS
+			css_globals = []
+			css_global_update = False
+			page_data_mod = True
 
-			# set page options
+		if cfg_page_update:
+			page_data.update(cfg_content)
+			page_data_mod = True
+
+		if page_data_mod:
+			# write page options
 			rc.page_options_set(page_id, **page_data)
 
 		# Make bib file
@@ -308,7 +338,8 @@ if __name__ == "__main__":
 		for item_ext, items in page_elements.items():
 			if item_ext in cfg_ext_plus_scripts:
 				for item_name, filename in items.items():
-					config[item_name] = read_or_exec(filename, item_ext)
+					item_cfg_mod = datetime.fromtimestamp(os.path.getmtime(filename)).date()
+					config[item_name] = (read_or_exec(filename, item_ext), item_cfg_mod)
 
 		for item_ext, items in page_elements.items():
 			if item_ext in text_plus_script_exts:
@@ -320,16 +351,25 @@ if __name__ == "__main__":
 						print(f"\tItem '{item_name}' not found in page {page_id}", file=sys.stderr)
 						continue
 
-					item_mod_date = os.path.getmtime(filename)
+					item_mod = False
+					item_mod_date = datetime.fromtimestamp(os.path.getmtime(filename)).date()
+					item_update = (item_mod_date >= site_modified or not update)
+
+					# set config
+					item_cfg, item_cfg_mod = config.get(item_name, (None, None))
+					item_cfg_update = item_cfg and (item_cfg_mod >= site_modified or not update)
+
+					if not (item_update or item_cfg_update):
+						# no need to consider item
+						continue
 
 					_, item_data = rc.item_get(page_id, item_id)
 					item_type = item_list[item_id][0]
 					# item types are: text (i.e., html), simpletext, picture, audio, video, slideshow, pdf, shape, note, embed
 
-					# set config
-					item_cfg = config.get(item_name, None)
 					if item_cfg:
 						item_data.update(item_cfg)
+						item_mod = True
 
 					if item_type in ('text', 'simpletext'):
 						if item_ext in ext_plus_scripts('.html'):
@@ -373,17 +413,20 @@ if __name__ == "__main__":
 						# ATT: it is textContent for text and textcontent for simpletext... we need to explore
 						keyname = "textContent" if item_type == 'text' else "textcontent"
 						item_data[f'media[{keyname}]'] = content
-						rc.item_set(page_id, item_id, **item_data)
-						if verbose:
-							print(f"\tModified item {item_name}({item_id}) from '{filename}'")
+						item_mod = True
 
 					else:
 						# item type not handled
 						if verbose:
 							print(f"\tItem {item_id} type ({item_type}) currently not handled")
 
+					if item_mod:
+						rc.item_set(page_id, item_id, **item_data)
+						if verbose:
+							print(f"\tModified item {item_name}({item_id}) from '{filename}'")
+
 		if bib_content:
-		# Delete page-specific bib file
+			# Delete page-specific bib file
 			os.remove(bib_fn)
 
 	rc.logout()
