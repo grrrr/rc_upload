@@ -12,6 +12,19 @@ import yaml
 import pdb
 import re
 from datetime import datetime
+from pathlib import Path
+
+# expand yaml with !include statement
+class IncludeLoader(yaml.SafeLoader):
+    pass
+
+def include_constructor(loader, node):
+    filename = loader.construct_scalar(node)
+    path = Path(loader.name).parent / filename
+    return path.read_text(encoding="utf-8")
+
+IncludeLoader.add_constructor("!include", include_constructor)
+
 
 def is_num(s):
 	try:
