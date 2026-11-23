@@ -99,7 +99,7 @@ def read_or_exec(fn, ext):
 
 	# convert content depending on format
 	if ext in ('.yml', '.yaml'):
-		content = yaml.safe_load(content)
+		content = yaml.load(content, Loader=IncludeLoader)
 
 	return content
 
