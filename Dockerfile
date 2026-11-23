@@ -4,11 +4,11 @@ RUN echo "Europe/Vienna" > /etc/timezone \
  && apt-get install --yes --quiet --no-install-recommends \
     make python3 python3-venv pandoc curl unzip
 
-RUN chmod +x *.sh *.py
-
 COPY requirements.txt ./
 COPY Makefile ./
 COPY rc_upload.* ./
+
+RUN chmod +x *.sh *.py
 
 ENV PATH="${PWD}:${PATH}"
 ENV VENV=/opt/venv
