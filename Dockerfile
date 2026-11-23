@@ -10,7 +10,7 @@ COPY rc_upload.* ./
 
 RUN chmod +x *.sh *.py
 
-ENV PATH="${PWD}:${PATH}"
+ENV PATH="/:${PATH}"
 ENV VENV=/opt/venv
 
 RUN python3 -m venv $VENV
